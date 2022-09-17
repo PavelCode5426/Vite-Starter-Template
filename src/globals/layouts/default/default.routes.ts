@@ -7,7 +7,7 @@ const admin_childrens = getLayoutRoutes('Admin',requireModules)
 const routes:RouteRecordRaw[] = [
     {
         path:'',
-        component:() => import('./Sample.vue'),
+        component:() => import('./DefaultLayout.vue'),
         children: admin_childrens
     }
 ]
