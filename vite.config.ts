@@ -1,5 +1,6 @@
 import path from 'path'
 import { defineConfig } from 'vite'
+import Preview from 'vite-plugin-vue-component-preview'
 import Vue from '@vitejs/plugin-vue'
 import Pages from 'vite-plugin-pages'
 import generateSitemap from 'vite-ssg-sitemap'
@@ -8,24 +9,39 @@ import Components from 'unplugin-vue-components/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Markdown from 'vite-plugin-vue-markdown'
 import { VitePWA } from 'vite-plugin-pwa'
-import VueI18n from '@intlify/vite-plugin-vue-i18n'
+import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Inspect from 'vite-plugin-inspect'
-import Prism from 'markdown-it-prism'
+import Inspector from 'vite-plugin-vue-inspector'
 import LinkAttributes from 'markdown-it-link-attributes'
-
-const markdownWrapperClasses = 'prose prose-sm m-auto text-left'
+import Unocss from 'unocss/vite'
+import Shiki from 'markdown-it-shiki'
+import VueMacros from 'unplugin-vue-macros/vite'
 
 export default defineConfig({
   resolve: {
     alias: {
+      '~/': `${path.resolve(__dirname, 'src')}/`,
       '@/': `${path.resolve(__dirname, 'src')}/`,
     },
   },
 
+  server: {
+    host: true, // needed for the Docker Container port mapping to work
+    port: 3000,
+    strictPort: true,
+    // hmr: false,
+  },
   plugins: [
-    Vue({
-      include: [/\.vue$/, /\.md$/],
-      reactivityTransform: true,
+    Preview(),
+
+    VueMacros({
+      plugins: {
+        vue: Vue({
+          include: [/\.vue$/, /\.md$/],
+          reactivityTransform: true,
+
+        }),
+      },
     }),
 
     // https://github.com/hannoeru/vite-plugin-pages
@@ -48,10 +64,11 @@ export default defineConfig({
       ],
       dts: 'src/types/auto-imports.d.ts',
       dirs: [
-        'src/globals/composables',
-        'src/globals/config/store',
+        'src/composables',
+        'src/stores',
       ],
       vueTemplate: true,
+      resolvers: [],
     }),
 
     // https://github.com/antfu/unplugin-vue-components
@@ -63,14 +80,23 @@ export default defineConfig({
       dts: 'src/types/components.d.ts',
     }),
 
+    // https://github.com/antfu/unocss
+    // see unocss.config.ts for config
+    Unocss(),
+
     // https://github.com/antfu/vite-plugin-vue-markdown
     // Don't need this? Try vitesse-lite: https://github.com/antfu/vitesse-lite
     Markdown({
-      wrapperClasses: markdownWrapperClasses,
+      wrapperClasses: 'prose prose-sm m-auto text-left',
       headEnabled: true,
       markdownItSetup(md) {
         // https://prismjs.com/
-        md.use(Prism)
+        md.use(Shiki, {
+          theme: {
+            light: 'vitesse-light',
+            dark: 'vitesse-dark',
+          },
+        })
         md.use(LinkAttributes, {
           matcher: (link: string) => /^https?:\/\//.test(link),
           attrs: {
@@ -82,53 +108,51 @@ export default defineConfig({
     }),
 
     // https://github.com/antfu/vite-plugin-pwa
-    //https://vite-plugin-pwa.netlify.app/guide/generate.html
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'safari-pinned-tab.svg'],
       manifest: {
-        name: 'Your site title',
-        short_name: 'Your site title',
+        name: 'Vitesse',
+        short_name: 'Vitesse',
         theme_color: '#ffffff',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: '/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable',
-          }
+          },
         ],
       },
     }),
 
-    // https://github.com/intlify/bundle-tools/tree/main/packages/vite-plugin-vue-i18n
+    // https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n
     VueI18n({
       runtimeOnly: true,
       compositionOnly: true,
-      include: [path.resolve(__dirname, 'src/globals/plugins/i18n/locales/**')],
+      fullInstall: true,
+      include: [path.resolve(__dirname, 'locales/**')],
     }),
 
     // https://github.com/antfu/vite-plugin-inspect
     // Visit http://localhost:3333/__inspect/ to see the inspector
     Inspect(),
-  ],
 
-  // https://github.com/antfu/vite-ssg
-  ssgOptions: {
-    script: 'async',
-    formatting: 'minify',
-    onFinished() { generateSitemap() },
-  },
+    // https://github.com/webfansplz/vite-plugin-vue-inspector
+    Inspector({
+      toggleButtonVisibility: 'never',
+    }),
+  ],
 
   // https://github.com/vitest-dev/vitest
   test: {
@@ -137,5 +161,17 @@ export default defineConfig({
     deps: {
       inline: ['@vue', '@vueuse', 'vue-demi'],
     },
+  },
+
+  // https://github.com/antfu/vite-ssg
+  ssgOptions: {
+    script: 'async',
+    formatting: 'minify',
+    onFinished() { generateSitemap() },
+  },
+
+  ssr: {
+    // TODO: workaround until they support native ESM
+    noExternal: ['workbox-window', /vue-i18n/],
   },
 })

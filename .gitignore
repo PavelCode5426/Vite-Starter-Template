@@ -5,7 +5,6 @@
 dist
 dist-ssr
 node_modules
-.idea
-.history
-.vscode
+.idea/
 *.log
+cypress/downloads

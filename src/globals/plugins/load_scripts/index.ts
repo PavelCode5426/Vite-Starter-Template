@@ -3,5 +3,5 @@ import load from 'load-script'
 
 
 export const install:UserModule = ({}) => {
-    
+
 }
